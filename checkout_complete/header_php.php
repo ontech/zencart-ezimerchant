@@ -2,7 +2,7 @@
 
 require('includes/languages/english/modules/order_total/ot_total.php');
 
-if(!is_int((int)$_GET["o"]))
+if(!isset($_GET["o"]))
 {
 	if($_SERVER['REQUEST_METHOD'] == "POST")
 	{
@@ -58,6 +58,7 @@ function ezi_process_xml($orderid, $xml)
 	global $db;
 	global $currencies;
 	global $zco_notifier;
+	global $order_total_modules;
 
 	$db->Execute("START TRANSACTION");
 
@@ -72,6 +73,7 @@ function ezi_process_xml($orderid, $xml)
 	$db->Execute("DELETE FROM ".TABLE_ORDERS_PRODUCTS." WHERE orders_id = ".$orderid);
 
 	$ordercontent = $xml->entry->content->children('http://api.ezimerchant.com/schemas/2009/');
+
 	$customer = $ordercontent->orderaddresses->orderaddress[0];
 	$billing = $customer;
 	$delivery = $ordercontent->orderaddresses->orderaddress[1];
@@ -159,25 +161,12 @@ function ezi_process_xml($orderid, $xml)
 
 	$products = $ordercontent->orderlines->orderline;
 
-	$products_ordered = "";
-	$products_ordered_html = "";
-	$products_ordered_attributes = "";
 	foreach($products as $product)
 	{
 		if('FREIGHT' != $product->productcode)
 		{
 			$db_query = $db->Execute("SELECT products_id FROM ".TABLE_PRODUCTS." WHERE products_model = '".zen_db_input($product->productcode)."'");
 			$productid = $db_query->fields['products_id'];
-	
-			if($neworder)
-			{
-			    $zco_notifier->notify('NOTIFY_ORDER_PROCESSING_STOCK_DECREMENT_BEGIN');
-	
-				$db->Execute("UPDATE " . TABLE_PRODUCTS . " SET products_ordered = products_ordered + " . sprintf('%d', $product->quantity) . " WHERE products_id = '" . zen_get_prid($productid) . "'");
-	
-				$zco_notifier->notify('NOTIFY_ORDER_PROCESSING_STOCK_DECREMENT_END');
-	
-			}
 	
 			// push product data back in
 			$sql_data_array = array('orders_id' => (int)$ordercontent->orderid, 
@@ -192,38 +181,21 @@ function ezi_process_xml($orderid, $xml)
 	
 		    zen_db_perform(TABLE_ORDERS_PRODUCTS, $sql_data_array);
 		    $order_products_id = $db->Insert_ID();
-	
-			foreach($product->attributes->attribute as $attribute)
-			{
-				$attributes = $attribute->attributes();
-	
-				$sql_data_array = array('orders_id' => (int)$ordercontent->orderid,
-					'orders_products_id' => $order_products_id,
-					'products_options' => (string)$attributes['name'],
-					'products_options_values' => (string)$attributes['value'],
-					'products_prid' => $productid);
-				zen_db_perform(TABLE_ORDERS_PRODUCTS_ATTRIBUTES, $sql_data_array);
-				
-				
-				$products_ordered_attributes .= "\n\t" . (string)$attributes['name'] . ' ' . zen_decode_specialchars((string)$attributes['value']);
-				
-				
+		    
+		    if(isset($product->attributes->attribute))
+		    {
+				foreach($product->attributes->attribute as $attribute)
+				{
+					$attributes = $attribute->attributes();
+		
+					$sql_data_array = array('orders_id' => (int)$ordercontent->orderid,
+						'orders_products_id' => $order_products_id,
+						'products_options' => (string)$attributes['name'],
+						'products_options_values' => (string)$attributes['value'],
+						'products_prid' => $productid);
+					zen_db_perform(TABLE_ORDERS_PRODUCTS_ATTRIBUTES, $sql_data_array);
+				}	
 			}	
-					
-		  $products_ordered .=  (int)$product->quantity . ' x ' . (string)$product->productname . ((string)$product->productcode != '' ? ' (' . (string)$product->productcode . ') ' : '') . ' = ' .
-	      $currencies->display_price((float)$product->priceinctax, '', (int)$product->quantity) .
-	      $products_ordered_attributes . "\n";
-	      $products_ordered_html .=
-	      '<tr>' . "\n" .
-	      '<td class="product-details" align="right" valign="top" width="30">' . $product->quantity . '&nbsp;x</td>' . "\n" .
-	      '<td class="product-details" valign="top">' . nl2br((string)$product->productname) . ((string)$product->productcode != '' ? ' (' . nl2br((string)$product->productcode) . ') ' : '') . "\n" .
-	      '<nobr>' .
-	      '<small><em> '. nl2br($products_ordered_attributes) .'</em></small>' .
-	      '</nobr>' .
-	      '</td>' . "\n" .
-	      '<td class="product-details-num" valign="top" align="right">' .
-	      $currencies->display_price((float)$product->priceinctax, '', (int)$product->quantity) .
-	      '</td></tr>' . "\n";		
 		}
 		else
 		{	
@@ -272,8 +244,7 @@ function ezi_process_xml($orderid, $xml)
 		}
 	}
 
-	$_SESSION['customer_id'] = (int)$ordercontent->customerid[0];
-
+	$_SESSION['customer_id'] = (int)$ordercontent->customerid;
 
 	if($neworder)
 	{
@@ -364,6 +335,7 @@ function ezi_process_xml($orderid, $xml)
 		    $_SESSION['customers_authorization'] = '';
 		}
 		
+		// include order procesing logic
 		if (!isset($_SESSION['language']))
 			$_SESSION['language'] = 'english';
 		if (file_exists(DIR_WS_LANGUAGES . $_SESSION['language'] . '/' . $template_dir_select . 'checkout_process.php')) {
@@ -371,10 +343,15 @@ function ezi_process_xml($orderid, $xml)
 		} else {
 			require(DIR_WS_LANGUAGES . $_SESSION['language'] . '/checkout_process.php');
 		}
-		require(DIR_WS_CLASSES . 'order.php');
+		require(DIR_WS_CLASSES . 'order.php');		
+		require(DIR_WS_CLASSES . 'order_total.php');
 		
-		$order = new order;
+		$order_total_modules = new order_total();		
+		
+		$order = new order();
 		$order->query((int)$ordercontent->orderid);
+		$order->create_add_products((int)$ordercontent->orderid);
+
 		$order->send_order_email((int)$ordercontent->orderid, 2);
 	}
 	else
