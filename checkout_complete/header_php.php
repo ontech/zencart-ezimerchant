@@ -77,15 +77,12 @@ function ezi_process_xml($orderid, $xml)
 	$customer = $ordercontent->orderaddresses->orderaddress[0];
 	$billing = $customer;
 	$delivery = $ordercontent->orderaddresses->orderaddress[1];
+	
 
 	$db_query = $db->Execute("SELECT countries_id, countries_name, address_format_id FROM ".TABLE_COUNTRIES." WHERE countries_iso_code_2 = '".$customer->countrycode."'");
 	$customer_country_id = $db_query->fields['countries_id'];
 	$customer_address_format_id = $db_query->fields['address_format_id'];
 	$customer_country_name = $db_query->fields['countries_name'];
-
-	$db_query = $db->Execute("SELECT countries_name, address_format_id FROM ".TABLE_COUNTRIES." WHERE countries_iso_code_2 = '".$delivery->countrycode."'");
-	$delivery_address_format_id = $db_query->fields['address_format_id'];
-	$delivery_country_name = $db_query->fields['countries_name'];
 	
 	$orderstatus = DEFAULT_ORDERS_STATUS_ID;
 	
@@ -117,13 +114,13 @@ function ezi_process_xml($orderid, $xml)
 	"delivery_state" => $delivery->division,
 	"delivery_country" => $delivery_country_name,
 	"delivery_address_format_id" => $delivery_address_format_id,
-	"billing_name" => $billing->name,
-	"billing_company" => $billing->companyname,
-	"billing_street_address" => $billing->address1,
-	"billing_suburb" => $billing->address2,
-	"billing_city" => $billing->place,
-	"billing_postcode" => $billing->postalcode,
-	"billing_state" => $billing->division,
+	"billing_name" => $customer->name,
+	"billing_company" => $customer->companyname,
+	"billing_street_address" => $customer->address1,
+	"billing_suburb" => $customer->address2,
+	"billing_city" => $customer->place,
+	"billing_postcode" => $customer->postalcode,
+	"billing_state" => $customer->division,
 	"billing_country" => $customer_country_name,
 	"billing_address_format_id" => $customer_address_format_id,
 	"orders_status" => $orderstatus,
@@ -136,19 +133,10 @@ function ezi_process_xml($orderid, $xml)
 	);
 
 	zen_db_perform(TABLE_ORDERS, $sql_data_array);
+	
+	$insert_orderid = $db->Insert_ID();
 
-	$sql_data_array = array(
-	"orders_id" => $ordercontent->orderid,
-	"title" => MODULE_ORDER_TOTAL_TOTAL_TITLE,
-	"text" => '<b>' . $currencies->format((float)$ordercontent->ordertotal, false, (string)$ordercontent->transactcurrency) . '</b>',
-	"value" => (float)$ordercontent->ordertotal,
-	"class" => "ot_total",
-	"sort_order" => 0
-	);
-
-	zen_db_perform(TABLE_ORDERS_TOTAL, $sql_data_array);
-
-	if($neworder)
+		if($neworder)
 	{
 		$sql_data_array = array('orders_id' => (int)$ordercontent->orderid, 
                         'orders_status_id' => DEFAULT_ORDERS_STATUS_ID, 
@@ -163,85 +151,88 @@ function ezi_process_xml($orderid, $xml)
 
 	foreach($products as $product)
 	{
-		if('FREIGHT' != $product->productcode)
-		{
-			$db_query = $db->Execute("SELECT products_id FROM ".TABLE_PRODUCTS." WHERE products_model = '".zen_db_input($product->productcode)."'");
-			$productid = $db_query->fields['products_id'];
-	
-			// push product data back in
-			$sql_data_array = array('orders_id' => (int)$ordercontent->orderid, 
-	                            'products_id' => zen_get_prid($productid), 
-	                            'products_model' => (string)$product->productcode, 
-	                            'products_name' => (string)$product->productname, 
-	                            'products_price' => (float)$product->price, 
-	                            'final_price' => (float)$product->priceinctax, 
-	                            'products_tax' => round((((float)$product->defaultcurrencylinetotalinctax / (float)$product->defaultcurrencylinetotal) - 1.0) * 100.0), 
-	                            'products_quantity' => (int)$product->quantity,
-	                            'products_prid' => $productid);
-	
-		    zen_db_perform(TABLE_ORDERS_PRODUCTS, $sql_data_array);
-		    $order_products_id = $db->Insert_ID();
-		    
+	if('FREIGHT' != $product->productcode)
+	{
+		$db_query = $db->Execute("SELECT products_id FROM ".TABLE_PRODUCTS." WHERE products_model = '".zen_db_input($product->productcode)."'");
+		$productid = $db_query->fields['products_id'];
+
+		// push product data back in
+		$sql_data_array = array('orders_id' => (int)$ordercontent->orderid, 
+                            'products_id' => zen_get_prid($productid), 
+                            'products_model' => (string)$product->productcode, 
+                            'products_name' => (string)$product->productname, 
+                            'products_price' => (float)$product->price, 
+                            'final_price' => (float)$product->priceinctax, 
+                            'products_tax' => round((((float)$product->defaultcurrencylinetotalinctax / (float)$product->defaultcurrencylinetotal) - 1.0) * 100.0), 
+                            'products_quantity' => (int)$product->quantity,
+                            'products_prid' => $productid);
+
+	    zen_db_perform(TABLE_ORDERS_PRODUCTS, $sql_data_array);
+	    $order_products_id = $db->Insert_ID();
+
 		    if(isset($product->attributes->attribute))
 		    {
-				foreach($product->attributes->attribute as $attribute)
-				{
-					$attributes = $attribute->attributes();
-		
-					$sql_data_array = array('orders_id' => (int)$ordercontent->orderid,
-						'orders_products_id' => $order_products_id,
-						'products_options' => (string)$attributes['name'],
-						'products_options_values' => (string)$attributes['value'],
-						'products_prid' => $productid);
-					zen_db_perform(TABLE_ORDERS_PRODUCTS_ATTRIBUTES, $sql_data_array);
-				}	
-			}	
+		foreach($product->attributes->attribute as $attribute)
+		{
+			$attributes = $attribute->attributes();
+
+			$sql_data_array = array('orders_id' => (int)$ordercontent->orderid,
+				'orders_products_id' => $order_products_id,
+				'products_options' => (string)$attributes['name'],
+				'products_options_values' => (string)$attributes['value'],
+				'products_prid' => $productid);
+			zen_db_perform(TABLE_ORDERS_PRODUCTS_ATTRIBUTES, $sql_data_array);
+		}	
+	}
 		}
-		else
-		{	
-			$sql_data_array = array(
-			"orders_id" => $ordercontent->orderid,
-			"title" => 'Sub-Total',
-			"text" => '<b>' . $currencies->format((float)$ordercontent->ordertotal - (float)$product->priceinctax, false, (string)$ordercontent->transactcurrency) . '</b>',
-			"value" => (float)$ordercontent->ordertotal - (float)$product->priceinctax,
-			"class" => "ot_subtotal",
-			"sort_order" => 100
-			);
+	else
+	{
+	
+	
+	$sql_data_array = array(
+	"orders_id" => $ordercontent->orderid,
+	"title" => 'Sub-Total',
+	"text" => '<b>' . $currencies->format((float)$ordercontent->ordertotal - (float)$product->priceinctax, false, (string)$ordercontent->transactcurrency) . '</b>',
+	"value" => (float)$ordercontent->ordertotal - (float)$product->priceinctax,
+	"class" => "ot_subtotal",
+	"sort_order" => 100
+	);
+
+	zen_db_perform(TABLE_ORDERS_TOTAL, $sql_data_array);
+	
+	$order_totals[0]['title'] = 'Sub-Total';
+	$order_totals[0]['text'] = '<b>' . $currencies->format((float)$ordercontent->ordertotal - (float)$product->priceinctax, false, (string)$ordercontent->transactcurrency) . '</b>';
+	
+	
+	
+	$sql_data_array = array(
+	"orders_id" => $ordercontent->orderid,
+	"title" => $product->productname,
+	"text" => '<b>' . $currencies->format((float)$product->priceinctax, false, (string)$ordercontent->transactcurrency) . '</b>',
+	"value" => (float)$product->priceinctax,
+	"class" => "ot_shipping",
+	"sort_order" => 200
+	);
+
+	zen_db_perform(TABLE_ORDERS_TOTAL, $sql_data_array);
+	
+	$order_totals[1]['title'] = $product->productname;
+	$order_totals[1]['text'] = '<b>' . $currencies->format((float)$product->priceinctax, false, (string)$ordercontent->transactcurrency) . '</b>';
+	
+	$sql_data_array = array(
+	"orders_id" => $ordercontent->orderid,
+	"title" => MODULE_ORDER_TOTAL_TOTAL_TITLE,
+	"text" => '<b>' . $currencies->format((float)$ordercontent->ordertotal, false, (string)$ordercontent->transactcurrency) . '</b>',
+	"value" => (float)$ordercontent->ordertotal,
+	"class" => "ot_total",
+	"sort_order" =>999	);
+
+	zen_db_perform(TABLE_ORDERS_TOTAL, $sql_data_array);
+
+	$order_totals[2]['title'] = MODULE_ORDER_TOTAL_TOTAL_TITLE;
+	$order_totals[2]['text'] = '<b>' . $currencies->format((float)$ordercontent->ordertotal, false, (string)$ordercontent->transactcurrency) . '</b>';	
 		
-			zen_db_perform(TABLE_ORDERS_TOTAL, $sql_data_array);
-			
-			$order_totals[0]['title'] = 'Sub-Total';
-			$order_totals[0]['text'] = '<b>' . $currencies->format((float)$ordercontent->ordertotal - (float)$product->priceinctax, false, (string)$ordercontent->transactcurrency) . '</b>';
-			
-			
-			
-			$sql_data_array = array(
-			"orders_id" => $ordercontent->orderid,
-			"title" => $product->productname,
-			"text" => '<b>' . $currencies->format((float)$product->priceinctax, false, (string)$ordercontent->transactcurrency) . '</b>',
-			"value" => (float)$product->priceinctax,
-			"class" => "ot_shipping",
-			"sort_order" => 200
-			);
-		
-			zen_db_perform(TABLE_ORDERS_TOTAL, $sql_data_array);
-			
-			$order_totals[1]['title'] = $product->productname;
-			$order_totals[1]['text'] = '<b>' . $currencies->format((float)$product->priceinctax, false, (string)$ordercontent->transactcurrency) . '</b>';
-			
-			$sql_data_array = array(
-			"orders_id" => $ordercontent->orderid,
-			"title" => MODULE_ORDER_TOTAL_TOTAL_TITLE,
-			"text" => '<b>' . $currencies->format((float)$ordercontent->ordertotal, false, (string)$ordercontent->transactcurrency) . '</b>',
-			"value" => (float)$ordercontent->ordertotal,
-			"class" => "ot_total",
-			"sort_order" =>999	);
-		
-			zen_db_perform(TABLE_ORDERS_TOTAL, $sql_data_array);
-		
-			$order_totals[2]['title'] = MODULE_ORDER_TOTAL_TOTAL_TITLE;
-			$order_totals[2]['text'] = '<b>' . $currencies->format((float)$ordercontent->ordertotal, false, (string)$ordercontent->transactcurrency) . '</b>';			
-		}
+	}
 	}
 
 	$_SESSION['customer_id'] = (int)$ordercontent->customerid;
@@ -265,8 +256,8 @@ function ezi_process_xml($orderid, $xml)
 	          $zone_id = $db_query->fields['zone_id'];
 	        }		
 		
-			$db->Execute("DELETE FROM ".TABLE_CUSTOMERS." WHERE customers_id = ".$customerid);
-			$db->Execute("DELETE FROM ".TABLE_CUSTOMERS_INFO." WHERE customers_info_id = ".$customerid);
+		$db->Execute("DELETE FROM ".TABLE_CUSTOMERS." WHERE customers_id = ".$customerid);
+		$db->Execute("DELETE FROM ".TABLE_CUSTOMERS_INFO." WHERE customers_info_id = ".$customerid);
 
 		    $sql_data_array = array('customers_id' => $customerid,
 								'customers_firstname' => $firstname,
@@ -302,7 +293,7 @@ function ezi_process_xml($orderid, $xml)
 			zen_db_perform(TABLE_ADDRESS_BOOK, $sql_data_array);
 
 			$address_id = $db->Insert_ID();
-
+			
 			
 			
 			$sql_data_array = array('customers_id' => $customerid,
@@ -326,15 +317,14 @@ function ezi_process_xml($orderid, $xml)
 
 			$db->Execute("UPDATE ".TABLE_CUSTOMERS." SET customers_default_address_id = ".$address_id." WHERE customers_id=".$customerid);
 
-		    $_SESSION['customer_first_name'] = $firstname;
-		    $_SESSION['customer_default_address_id'] = $address_id;
-			$_SESSION['billto'] = $address_id;
-			$_SESSION['sendto'] = $sendaddress_id;
-		    $_SESSION['customer_country_id'] = $customer_country_id;
-		    $_SESSION['customer_zone_id'] = $zone_id;
-		    $_SESSION['customers_authorization'] = '';
-		}
-		
+    $_SESSION['customer_first_name'] = $firstname;
+    $_SESSION['customer_default_address_id'] = $address_id;
+	$_SESSION['billto'] = $address_id;
+	$_SESSION['sendto'] = $sendaddress_id;
+    $_SESSION['customer_country_id'] = $customer_country_id;
+    $_SESSION['customer_zone_id'] = $zone_id;
+    $_SESSION['customers_authorization'] = '';
+
 		// include order procesing logic
 		if (!isset($_SESSION['language']))
 			$_SESSION['language'] = 'english';
@@ -366,11 +356,131 @@ function ezi_process_xml($orderid, $xml)
 		    $_SESSION['customer_country_id'] = $db_query->fields['entry_country_id'];
 		    $_SESSION['customer_zone_id'] = $db_query->fields['entry_zone_id'];
 		}
-	}		
+		
+	}
+	
 
-	$db->Execute("COMMIT");
+		if (!isset($_SESSION['language']))
+		$_SESSION['language'] = 'english';
+		if (file_exists(DIR_WS_LANGUAGES . $_SESSION['language'] . '/' . $template_dir_select . 'checkout_process.php')) {
+		require(DIR_WS_LANGUAGES . $_SESSION['language'] . '/' . $template_dir_select . 'checkout_process.php');
+		} else {
+		require(DIR_WS_LANGUAGES . $_SESSION['language'] . '/checkout_process.php');
+		}
+  
+  
+	$html_msg=array();
+  
+
+  //intro area
+    $email_order = EMAIL_TEXT_HEADER . EMAIL_TEXT_FROM . STORE_NAME . "\n\n" .
+    $customer->name . "\n\n" .
+    EMAIL_THANKS_FOR_SHOPPING . "\n" . EMAIL_DETAILS_FOLLOW . "\n" .
+    EMAIL_SEPARATOR . "\n" .
+    EMAIL_TEXT_ORDER_NUMBER . ' ' . $ordercontent->orderid . "\n" .
+    EMAIL_TEXT_DATE_ORDERED . ' ' . strftime(DATE_FORMAT_LONG) . "\n" .
+    EMAIL_TEXT_INVOICE_URL . ' ' . zen_href_link(FILENAME_ACCOUNT_HISTORY_INFO, 'order_id=' . $ordercontent->orderid, 'SSL', false) . "\n\n";
+    $html_msg['EMAIL_TEXT_HEADER']     = EMAIL_TEXT_HEADER;
+    $html_msg['EMAIL_TEXT_FROM']       = EMAIL_TEXT_FROM;
+    $html_msg['INTRO_STORE_NAME']      = STORE_NAME;
+    $html_msg['EMAIL_THANKS_FOR_SHOPPING'] = EMAIL_THANKS_FOR_SHOPPING;
+    $html_msg['EMAIL_DETAILS_FOLLOW']  = EMAIL_DETAILS_FOLLOW;
+    $html_msg['INTRO_ORDER_NUM_TITLE'] = EMAIL_TEXT_ORDER_NUMBER;
+    $html_msg['INTRO_ORDER_NUMBER']    = $ordercontent->orderid;
+    $html_msg['INTRO_DATE_TITLE']      = EMAIL_TEXT_DATE_ORDERED;
+    $html_msg['INTRO_DATE_ORDERED']    = strftime(DATE_FORMAT_LONG);
+    $html_msg['INTRO_URL_TEXT']        = EMAIL_TEXT_INVOICE_URL_CLICK;
+    $html_msg['INTRO_URL_VALUE']       = zen_href_link(FILENAME_ACCOUNT_HISTORY_INFO, 'order_id=' . $ordercontent->orderid, 'SSL', false);
+	
+    //comments area
+    if ($ordercontent->instructions) {
+      $email_order .= zen_db_output($ordercontent->instructions) . "\n\n";
+      $html_msg['ORDER_COMMENTS'] = nl2br(zen_db_output($ordercontent->instructions));
+    } else {
+      $html_msg['ORDER_COMMENTS'] = '';
+    }
+
+    //products area
+    $email_order .= EMAIL_TEXT_PRODUCTS . "\n" .
+    EMAIL_SEPARATOR . "\n" .
+    $products_ordered .
+    EMAIL_SEPARATOR . "\n";
+    $html_msg['PRODUCTS_TITLE'] = EMAIL_TEXT_PRODUCTS;
+    $html_msg['PRODUCTS_DETAIL']='<table class="product-details" border="0" width="100%" cellspacing="0" cellpadding="2' . $products_ordered_html . '</table>';
+	//zen_mail($customer->name, $customer->email, EMAIL_TEXT_SUBJECT . EMAIL_ORDER_NUMBER_SUBJECT . $ordercontent->orderid, $email_order, STORE_NAME, EMAIL_FROM, $html_msg, 'checkout');
+
+    //order totals area
+    $html_ot .= '<td class="order-totals-text" align="right" width="100%">' . '&nbsp;' . '</td> ' . "\n" . '<td class="order-totals-num" align="right" nowrap="nowrap">' . '---------' .'</td> </tr>' . "\n" . '<tr>';
+    for ($i=0, $n=sizeof($order_totals); $i<$n; $i++) {
+      $email_order .= strip_tags($order_totals[$i]['title']) . ' ' . strip_tags($order_totals[$i]['text']) . "\n";
+      $html_ot .= '<td class="order-totals-text" align="right" width="100%">' . $order_totals[$i]['title'] . '</td> ' . "\n" . '<td class="order-totals-num" align="right" nowrap="nowrap">' .($order_totals[$i]['text']) .'</td> </tr>' . "\n" . '<tr>';
+    }
+    $html_msg['ORDER_TOTALS'] = '<table border="0" width="100%" cellspacing="0" cellpadding="2"> ' . $html_ot . ' </table>';
+
+	
+	
+    //addresses area: Delivery
+    $html_msg['HEADING_ADDRESS_INFORMATION']= HEADING_ADDRESS_INFORMATION;
+    $html_msg['ADDRESS_DELIVERY_TITLE']     = EMAIL_TEXT_DELIVERY_ADDRESS;
+    $html_msg['ADDRESS_DELIVERY_DETAIL']    = zen_address_label($_SESSION['customer_id'], $_SESSION['sendto'], true, '', "<br />");
+    
+    
+      $email_order .= "\n" . EMAIL_TEXT_DELIVERY_ADDRESS . "\n" .
+      EMAIL_SEPARATOR . "\n" .
+      zen_address_label($_SESSION['customer_id'], $_SESSION['sendto'], 0, '', "\n") . "\n";
+    
+
+    //addresses area: Billing
+    $email_order .= "\n" . EMAIL_TEXT_BILLING_ADDRESS . "\n" .
+    EMAIL_SEPARATOR . "\n" .
+    zen_address_label($_SESSION['customer_id'], $_SESSION['billto'], 0, '', "\n") . "\n\n";
+    $html_msg['ADDRESS_BILLING_TITLE']   = EMAIL_TEXT_BILLING_ADDRESS;
+    $html_msg['ADDRESS_BILLING_DETAIL']  = zen_address_label($_SESSION['customer_id'], $_SESSION['billto'], true, '', "<br />");
+
+	
+	
+	
+	
+	
+    
+      $email_order .= EMAIL_TEXT_PAYMENT_METHOD . "\n" .
+      EMAIL_SEPARATOR . "\n";
+      $email_order .=  (string)$ordercontent->orderpayments->orderpayment[0]->paymentmethod . "\n\n";
+    
+    $html_msg['PAYMENT_METHOD_TITLE']  = EMAIL_TEXT_PAYMENT_METHOD;
+    $html_msg['PAYMENT_METHOD_DETAIL'] = (string)$ordercontent->orderpayments->orderpayment[0]->paymentmethod;
+    
+
+    // include disclaimer
+    if (defined('EMAIL_DISCLAIMER') && EMAIL_DISCLAIMER != '') $email_order .= "\n-----\n" . sprintf(EMAIL_DISCLAIMER, STORE_OWNER_EMAIL_ADDRESS) . "\n\n";
+    // include copyright
+    if (defined('EMAIL_FOOTER_COPYRIGHT')) $email_order .= "\n-----\n" . EMAIL_FOOTER_COPYRIGHT . "\n\n";
+
+    while (strstr($email_order, '&nbsp;')) $email_order = str_replace('&nbsp;', ' ', $email_order);
+    $html_msg['EMAIL_FIRST_NAME'] = $firstname;
+    $html_msg['EMAIL_LAST_NAME'] = $lastname;
+    $html_msg['EMAIL_TEXT_HEADER'] = EMAIL_TEXT_HEADER;
+    $html_msg['EXTRA_INFO'] = '';
+   
+    zen_mail($customer->name, $customer->email, EMAIL_TEXT_SUBJECT . EMAIL_ORDER_NUMBER_SUBJECT . $ordercontent->orderid, $email_order, STORE_NAME, EMAIL_FROM, $html_msg, 'checkout');
+
+    // send additional emails
+    if (SEND_EXTRA_ORDER_EMAILS_TO != '') {
+      $extra_info=email_collect_extra_info('','', $firstname . ' ' . $lastname, $customer->email, $customer->phone);
+      $html_msg['EXTRA_INFO'] = $extra_info['HTML'];
+
+           
+
+      zen_mail('', SEND_EXTRA_ORDER_EMAILS_TO, SEND_EXTRA_NEW_ORDERS_EMAILS_TO_SUBJECT . ' ' . EMAIL_TEXT_SUBJECT . EMAIL_ORDER_NUMBER_SUBJECT . $ordercontent->orderid,
+      $email_order . $extra_info['TEXT'], STORE_NAME, EMAIL_FROM, $html_msg, 'checkout_extra');
+    }
+  
+  
+  
+ 	$db->Execute("COMMIT");
 
 	$zco_notifier->notify('NOTIFY_MODULE_END_CREATE_ACCOUNT');
+	
 }
 
 ?>
