@@ -492,6 +492,7 @@ function ezi_process_xml($orderid, $xml)
  	$db->Execute("COMMIT");
 
 	$zco_notifier->notify('NOTIFY_MODULE_END_CREATE_ACCOUNT');
+	
 }
 
 ?>
