@@ -78,7 +78,7 @@ else
 	//$result["DEFAULTFAX"] = $check_customer->fields['customers_fax'];
 	//$result["DEFAULTADDRESS1"] = '';
 	//$result["DEFAULTADDRESS2"] = '';
-	$result["DEFAULTADDRESS3"] = '';
+	//$result["DEFAULTADDRESS3"] = '';
 	//$result["DEFAULTPLACE"] = '';
 	//$result["DEFAULTDIVISION"] = '';
 	//$result["DEFAULTPOSTALCODE"] = '';
