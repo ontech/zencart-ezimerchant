@@ -15,6 +15,97 @@ if(!isset($_GET["o"]))
 			$db_query = $db->Execute("SELECT eziorder_id FROM ezi_order_mapping WHERE eziorder_id = '".$orderid."'");
 			if($db_query->RecordCount() == 0)
 			ezi_process_xml($orderid, $xml);
+			else
+			{
+			
+				// look up history on this order from ezi table
+					$sql = "select * from ezi_order_mapping where eziorder_id = :orderID";
+					$sql = $db->bindVars($sql, ':orderID', $orderid, 'integer');
+					$zc_ppHist = $db->Execute($sql);
+					if ($zc_ppHist->RecordCount() == 0) exit;
+					$ezi_orderid = (int)$zc_ppHist->fields['eziorder_id'];
+					$zen_orderid = (int)$zc_ppHist->fields['order_id'];
+				
+				$orderstate_fromezi 	= sprintf("%s",$ordercontent->orderstate);
+				$paymentstatus_fromezi  = sprintf("%s",$ordercontent->paymentstatus);
+				$shipmentstatus_fromezi = sprintf("%s",$ordercontent->shipmentstatus);
+					
+					if($orderstate_fromezi == "captured" && $paymentstatus_fromezi = "captured" && $shipmentstatus_fromezi = "unshipped")
+					{
+						$new_order_status = 1;
+								// Success, so save the results
+								$sql_data_array = array('orders_id' => (int)$zen_orderid,
+														'orders_status_id' => (int)$new_order_status,
+														'date_added' => 'now()',
+														'comments' => 'FUND CAPTURED.',
+														'customer_notified' => 0
+													 );
+								zen_db_perform(TABLE_ORDERS_STATUS_HISTORY, $sql_data_array);
+								$db->Execute("update " . TABLE_ORDERS  . "
+											  set orders_status = '" . (int)$new_order_status . "'
+											  where orders_id = '" . (int)$zen_orderid . "'");						
+					}
+					if($orderstate_fromezi == "captured" && $paymentstatus_fromezi = "complete" && $shipmentstatus_fromezi = "unshipped")
+					{
+						$new_order_status = 1;
+								// Success, so save the results
+								$sql_data_array = array('orders_id' => (int)$zen_orderid,
+														'orders_status_id' => (int)$new_order_status,
+														'date_added' => 'now()',
+														'comments' => 'PAYMENT COMPLETED.',
+														'customer_notified' => 0
+													 );
+								zen_db_perform(TABLE_ORDERS_STATUS_HISTORY, $sql_data_array);
+								$db->Execute("update " . TABLE_ORDERS  . "
+											  set orders_status = '" . (int)$new_order_status . "'
+											  where orders_id = '" . (int)$zen_orderid . "'");
+								$db->Execute("update ezi_order_mapping
+										  set paymentcompleted = 'true', captureamount = amount
+										  where order_id = '" . (int)$zen_orderid . "'");
+					}
+					if($orderstate_fromezi == "cancelled" && $paymentstatus_fromezi = "unpaid" && $shipmentstatus_fromezi = "unshipped")
+					{
+						$new_order_status = 1;
+								// Success, so save the results
+								$sql_data_array = array('orders_id' => (int)$zen_orderid,
+														'orders_status_id' => (int)$new_order_status,
+														'date_added' => 'now()',
+														'comments' => 'REFUND DONE SUCCESSFULLY.',
+														'customer_notified' => 0
+													 );
+								zen_db_perform(TABLE_ORDERS_STATUS_HISTORY, $sql_data_array);
+								$db->Execute("update " . TABLE_ORDERS  . "
+											  set orders_status = '" . (int)$new_order_status . "'
+											  where orders_id = '" . (int)$zen_orderid . "'");
+								$db->Execute("update ezi_order_mapping
+										  set paymentcompleted = 'false', refundamount = captureamount
+										  where order_id = '" . (int)$zen_orderid . "'");
+					}
+					if($orderstate_fromezi == "complete" && $paymentstatus_fromezi = "complete" && $shipmentstatus_fromezi = "complete")
+					{
+						$new_order_status = 3;
+								// Success, so save the results
+								$sql_data_array = array('orders_id' => (int)$zen_orderid,
+														'orders_status_id' => (int)$new_order_status,
+														'date_added' => 'now()',
+														'comments' => 'ORDER DELIVERED.',
+														'customer_notified' => 0
+													 );
+								zen_db_perform(TABLE_ORDERS_STATUS_HISTORY, $sql_data_array);
+								$db->Execute("update " . TABLE_ORDERS  . "
+											  set orders_status = '" . (int)$new_order_status . "'
+											  where orders_id = '" . (int)$zen_orderid . "'");
+								$db->Execute("update ezi_order_mapping
+										  set paymentcompleted = 'true', captureamount = amount
+										  where order_id = '" . (int)$zen_orderid . "'");
+					}
+					
+					
+					
+					
+					
+				
+			}
 
 			echo "OK";
 			die();
@@ -65,18 +156,18 @@ function ezi_process_xml($orderid, $xml)
 	global $cart;
 
 	$ordercontent = $xml->entry->content->children('http://api.ezimerchant.com/schemas/2009/');
-
+	
 	$customer = $ordercontent->orderaddresses->orderaddress[0];
 	$billing = $customer;
 	$delivery = $ordercontent->orderaddresses->orderaddress[1];
 	
 	
-	$name = explode(' ', $customer->name);
+	$name = explode(' ', sprintf("%s",$customer->name));
 
 			$firstname = $name[0];
 			$lastname = $name[1];
 			
-			$deliveryname = explode(' ', $delivery->name);
+			$deliveryname = explode(' ', sprintf("%s",$delivery->name));
 
 			$delivery_firstname = $deliveryname[0];
 			$delivery_lastname = $deliveryname[1];
@@ -165,28 +256,28 @@ function ezi_process_xml($orderid, $xml)
 	// customer
     $order->customer['firstname']       = $firstname;
 	$order->customer['lastname']        = $lastname;
-    $order->customer['company']         = $customer->companyname;
-    $order->customer['street_address']  = $customer->address1;
-    $order->customer['suburb']          = $customer->address2;
-    $order->customer['city']            = $customer->place;
-    $order->customer['postcode']        = $customer->postalcode;
+    $order->customer['company']         = sprintf("%s",$customer->companyname);
+    $order->customer['street_address']  = sprintf("%s",$customer->address1);
+    $order->customer['suburb']          = sprintf("%s",$customer->address2);
+    $order->customer['city']            = sprintf("%s",$customer->place);
+    $order->customer['postcode']        = sprintf("%s",$customer->postalcode);
     $order->customer['state']           = $state_name;
     $order->customer['country']         = array('id' => $country_id, 'title' => $country_name, 'iso_code_2' => $country_code2, 'iso_code_3' => $country_code3);
     $order->customer['country']['id']   = $country_id;
     $order->customer['country']['iso_code_2'] = $country_code2;
     $order->customer['format_id']       = $address_format_id;
-    $order->customer['email_address']   = $customer->email;
-    $order->customer['telephone']       = $customer->phone;
+    $order->customer['email_address']   = sprintf("%s",$customer->email);
+    $order->customer['telephone']       = sprintf("%s",$customer->phone);
     $order->customer['zone_id']         = $state_id;
 
     // billing
     $order->billing['firstname']       = $firstname;
 	$order->billing['lastname']        = $lastname;
-    $order->billing['company']         = $customer->companyname;
-    $order->billing['street_address']  = $customer->address1;
-    $order->billing['suburb']          = $customer->address2;
-    $order->billing['city']            = $customer->place;
-    $order->billing['postcode']        = $customer->postalcode;
+    $order->billing['company']         = sprintf("%s",$customer->companyname);
+    $order->billing['street_address']  = sprintf("%s",$customer->address1);
+    $order->billing['suburb']          = sprintf("%s",$customer->address2);
+    $order->billing['city']            = sprintf("%s",$customer->place);
+    $order->billing['postcode']        = sprintf("%s",$customer->postalcode);
     $order->billing['state']           = $state_name;
     $order->billing['country']         = array('id' => $country_id, 'title' => $country_name, 'iso_code_2' => $country_code2, 'iso_code_3' => $country_code3);
     $order->billing['country']['id']   = $country_id;
@@ -198,11 +289,11 @@ function ezi_process_xml($orderid, $xml)
     
       $order->delivery['firstname']     = $delivery_firstname;
 	  $order->delivery['lastname']      = $delivery_lastname;
-      $order->delivery['company']       = $delivery->companyname;
-      $order->delivery['street_address']= $delivery->address1;
-      $order->delivery['suburb']        = $delivery->address2;
-      $order->delivery['city']          = $delivery->place;
-      $order->delivery['postcode']      = $delivery->postalcode;
+      $order->delivery['company']       = sprintf("%s",$delivery->companyname);
+      $order->delivery['street_address']= sprintf("%s",$delivery->address1);
+      $order->delivery['suburb']        = sprintf("%s",$delivery->address2);
+      $order->delivery['city']          = sprintf("%s",$delivery->place);
+      $order->delivery['postcode']      = sprintf("%s",$delivery->postalcode);
       $order->delivery['state']         = $delivery_state_name;
       $order->delivery['country']       = array('id' => $country_id, 'title' => $delivery_country_name, 'iso_code_2' => $country_code2, 'iso_code_3' => $country_code3);
       $order->delivery['country_id']    = $country_id;
@@ -272,10 +363,10 @@ function ezi_process_xml($orderid, $xml)
         $sql_data_array = array(
             'customers_firstname'           => $firstname,
             'customers_lastname'            => $lastname,
-            'customers_email_address'       => $customer->email,
+            'customers_email_address'       => sprintf("%s",$customer->email),
             'customers_email_format'        => (ACCOUNT_EMAIL_PREFERENCE == '1' ? 'HTML' : 'TEXT'),
-            'customers_telephone'           => $customer->phone,
-            'customers_fax'                 => $customer->fax,
+            'customers_telephone'           => sprintf("%s",$customer->phone),
+            'customers_fax'                 => sprintf("%s",$customer->fax),
             'customers_gender'              => '',
             'customers_newsletter'          => '0',
             'customers_password'            => zen_encrypt_password($password));
@@ -295,21 +386,21 @@ function ezi_process_xml($orderid, $xml)
             'entry_gender'              => '',
             'entry_firstname'           => $firstname,
             'entry_lastname'            => $lastname,
-            'entry_street_address'      => $customer->address1,
-            'entry_suburb'              => $customer->address2,
-            'entry_city'                => $customer->place,
+            'entry_street_address'      => sprintf("%s",$customer->address1),
+            'entry_suburb'              => sprintf("%s",$customer->address2),
+            'entry_city'                => sprintf("%s",$customer->place),
             'entry_zone_id'             => $state_id,
-            'entry_postcode'            => $customer->postalcode,
+            'entry_postcode'            => sprintf("%s",$customer->postalcode),
             'entry_country_id'          => $country_id);
         
-          $sql_data_array['entry_company'] = $customer->companyname;
+          $sql_data_array['entry_company'] = sprintf("%s",$customer->companyname);
         
         if ($state_id > 0) {
           $sql_data_array['entry_zone_id'] = $state_id;
           $sql_data_array['entry_state'] = '';
         } else {
           $sql_data_array['entry_zone_id'] = 0;
-          $sql_data_array['entry_state'] = $customer->division;
+          $sql_data_array['entry_state'] = sprintf("%s",$customer->division);
         }
 
         // insert the data
@@ -367,7 +458,7 @@ function ezi_process_xml($orderid, $xml)
       }
 
       // log the user in with the email sent back from ezimerchant response
-      user_login($customer->email, false);
+      user_login(sprintf("%s",$customer->email), false);
 
 
       // This is the address matching section
@@ -478,7 +569,8 @@ function ezi_process_xml($orderid, $xml)
 	
 	foreach($products as $product)
 	{
-	if('FREIGHT' != $product->productcode)
+	$freight_selected = sprintf("%s",$product->productcode);
+	if('FREIGHT' != $freight_selected)
 	{
 		$db_query = $db->Execute("SELECT products_id FROM ".TABLE_PRODUCTS." WHERE products_id = '".zen_db_input($product->productid)."'");
 		//$productid = $db_query->fields['products_id'];
@@ -544,7 +636,7 @@ function ezi_process_xml($orderid, $xml)
 	{
 	$j = 0;		
 	$shipping_price = (float)$product->priceinctax;
-	$shipping_name = $product->productname;
+	$shipping_name = sprintf("%s",$product->productname);
 	$j++;
 	}
 	}
