@@ -191,7 +191,7 @@
     */
   function admin_notification($zf_order_id) {
     if (!defined('MODULE_PAYMENT_EZIMERCHANT_STATUS')) return '';
-    global $db;
+    global $db, $order;
     $module = $this->code;
     $output = '';
     //$response = $this->_GetTransactionDetails($zf_order_id);
@@ -478,6 +478,7 @@
       $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Ezimerchant MerchantID:', 'MODULE_PAYMENT_EZIMERCHANT_MERCHANT', '0', 'Please mention Ezimerchant MercahantID?', '6', '1', now());");
 	  $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Ezimerchant APIKEY:', 'MODULE_PAYMENT_EZIMERCHANT_APIKEY', '0', 'Please mention Ezimerchant APIKEY?', '6', '2', now());");
       $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, set_function, use_function, date_added) values ('Set Order Status', 'MODULE_PAYMENT_EZIMERCHANT_ORDER_STATUS_ID', '0', 'Set the status of orders made with this payment module to this value', '6', '3', 'zen_cfg_pull_down_order_statuses(', 'zen_get_order_status_name', now());");
+	  $db->Execute("insert into " . TABLE_CONFIGURATION . " (configuration_title, configuration_key, configuration_value, configuration_description, configuration_group_id, sort_order, date_added) values ('Sort order of display.', 'MODULE_PAYMENT_EZIMERCHANT_SORT_ORDER', '0', 'Sort order of display. Lowest is displayed first.', '6', '0', now())");
 	  $db->Execute("CREATE TABLE IF NOT EXISTS `ezi_order_mapping` (
 					  `eziorder_id` int(11) NOT NULL auto_increment,
 					  `order_id` int(11) NOT NULL,

@@ -23,6 +23,9 @@
   foreach ($ipn->fields as $key=>$value){
     $ipn->fields[$key] = stripslashes($value);
   }
+  
+  if($ipn->fields['paymentmethod'])
+  $outputPayMethod = '<strong>' . MODULE_PAYMENT_EZIMERCHANT_PAYMENTMETHOD_EZI . ':</strong> ' . $ipn->fields['paymentmethod'] . '<br />'. "\n";  
 
     $outputStartBlock .= '<td><table class="noprint">'."\n";
     $outputStartBlock .= '<tr style="background-color : #cccccc; border-style : dotted;">'."\n";
@@ -30,12 +33,12 @@
     $outputEndBlock .='</table></td>'."\n";
 
 
-  if (method_exists($this, '_doRefund') && ($ipn->fields['paymentcompleted'] == 'true' || $ipn->fields['captureamount'] > 0) && ($ipn->fields['refundamount'] != $ipn->fields['captureamount'])) {
+  if (method_exists($this, '_doRefund') && ($ipn->fields['paymentcompleted'] == 'true' || $ipn->fields['captureamount'] > 0) && ($ipn->fields['refundamount'] != $ipn->fields['captureamount']) && $order->info['orders_status'] < 3) {
     $outputRefund .= '<td><table class="noprint">'."\n";
     $outputRefund .= '<tr style="background-color : #eeeeee; border-style : dotted;">'."\n";
     $outputRefund .= '<td class="main">' . MODULE_PAYMENT_EZIMERCHANT_ENTRY_REFUND_TITLE . '<br />'. "\n";
     $outputRefund .= zen_draw_form('pprefund', FILENAME_ORDERS, zen_get_all_get_params(array('action')) . 'action=doRefund', 'post', '', true) . zen_hide_session_id();
-    if ($ipn->fields['refundamount'] > 0) {
+    if ($ipn->fields['refundamount'] == 0) {
     // full refund (if partially refund, then this button is not shown)
       $outputRefund .= MODULE_PAYMENT_EZIMERCHANT_ENTRY_REFUND_FULL;
       $outputRefund .= '<br /><input type="submit" name="fullrefund" value="' . MODULE_PAYMENT_EZIMERCHANT_ENTRY_REFUND_BUTTON_TEXT_FULL . '" title="' . MODULE_PAYMENT_EZIMERCHANT_ENTRY_REFUND_BUTTON_TEXT_FULL . '" />' . ' ' . MODULE_PAYMENT_EZIMERCHANT_TEXT_REFUND_FULL_CONFIRM_CHECK . zen_draw_checkbox_field('reffullconfirm', '', false) . '<br />';
@@ -103,8 +106,9 @@
 
 // prepare output based on suitable content components
   $output = '<!-- BOF: ezi admin transaction processing tools -->';
+  
   $output .= $outputStartBlock;
-
+  $output .= $outputPayMethod;
 //debug
 //$output .= '<pre>' . print_r($response, true) . '</pre>';
 
