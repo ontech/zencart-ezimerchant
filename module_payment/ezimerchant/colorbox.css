@@ -1,0 +1,168 @@
+#colorbox, #cboxOverlay, #cboxWrapper {
+    left: 0;
+    overflow: hidden;
+    position: absolute;
+    top: 0;
+    z-index: 9999;
+    background-color:#ffffff;
+}
+#cboxOverlay {
+    height: 100%;
+    position: fixed;
+    width: 100%;
+}
+#cboxMiddleLeft, #cboxBottomLeft {
+    clear: left;
+}
+#cboxContent {
+    position: relative;
+}
+#cboxLoadedContent {
+    overflow: auto;
+}
+#cboxTitle {
+    margin: 0;
+}
+#cboxLoadingOverlay, #cboxLoadingGraphic {
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+}
+#cboxPrevious, #cboxNext, #cboxClose, #cboxSlideshow {
+    cursor: pointer;
+}
+.cboxPhoto {
+    border: 0 none;
+    display: block;
+    float: left;
+    margin: auto;
+}
+.cboxIframe {
+    border: 0 none;
+    display: block;
+    height: 100%;
+    width: 100%;
+}
+#cboxOverlay {
+    background: none repeat scroll 0 0 #000000;
+}
+#colorbox {
+}
+#cboxTopLeft {
+    background: url("images/border1.png") no-repeat scroll 0 0 transparent;
+    height: 25px;
+    width: 25px;
+}
+#cboxTopCenter {
+    background: url("images/border1.png") repeat-x scroll 0 -50px transparent;
+    height: 25px;
+}
+#cboxTopRight {
+    background: url("images/border1.png") no-repeat scroll -25px 0 transparent;
+    height: 25px;
+    width: 25px;
+}
+#cboxBottomLeft {
+    background: url("images/border1.png") no-repeat scroll 0 -25px transparent;
+    height: 25px;
+    width: 25px;
+}
+#cboxBottomCenter {
+    background: url("images/border1.png") repeat-x scroll 0 -75px transparent;
+    height: 25px;
+}
+#cboxBottomRight {
+    background: url("images/border1.png") no-repeat scroll -25px -25px transparent;
+    height: 25px;
+    width: 25px;
+}
+#cboxMiddleLeft {
+    background: url("images/border2.png") repeat-y scroll 0 0 transparent;
+    width: 25px;
+}
+#cboxMiddleRight {
+    background: url("images/border2.png") repeat-y scroll -25px 0 transparent;
+    width: 25px;
+}
+#cboxContent {
+    background: none repeat scroll 0 0 #FFFFFF;
+    overflow: hidden;
+}
+#cboxError {
+    border: 1px solid #CCCCCC;
+    padding: 50px;
+}
+#cboxLoadedContent {
+    margin-bottom: 20px;
+}
+#cboxTitle {
+    bottom: 0;
+    color: #999999;
+    left: 0;
+    position: absolute;
+    text-align: center;
+    width: 100%;
+}
+#cboxCurrent {
+    bottom: 0;
+    color: #999999;
+    left: 100px;
+    position: absolute;
+}
+#cboxSlideshow {
+    bottom: 0;
+    color: #444444;
+    position: absolute;
+    right: 42px;
+}
+#cboxPrevious {
+    bottom: 0;
+    color: #444444;
+    left: 0;
+    position: absolute;
+}
+#cboxNext {
+    bottom: 0;
+    color: #444444;
+    left: 63px;
+    position: absolute;
+}
+#cboxLoadingOverlay {
+    background: url("images/loading.gif") no-repeat scroll 5px 5px #FFFFFF;
+}
+#cboxClose {
+    bottom: 0;
+    color: #444444;
+    display: block;
+    position: absolute;
+    right: 0;
+}
+.cboxIE #cboxTopLeft, .cboxIE #cboxTopCenter, .cboxIE #cboxTopRight, .cboxIE #cboxBottomLeft, .cboxIE #cboxBottomCenter, .cboxIE #cboxBottomRight, .cboxIE #cboxMiddleLeft, .cboxIE #cboxMiddleRight {
+}
+.cboxIE6 #cboxTopLeft {
+    background: url("images/ie6/borderTopLeft.png") repeat scroll 0 0 transparent;
+}
+.cboxIE6 #cboxTopCenter {
+    background: url("images/ie6/borderTopCenter.png") repeat scroll 0 0 transparent;
+}
+.cboxIE6 #cboxTopRight {
+    background: url("images/ie6/borderTopRight.png") repeat scroll 0 0 transparent;
+}
+.cboxIE6 #cboxBottomLeft {
+    background: url("images/ie6/borderBottomLeft.png") repeat scroll 0 0 transparent;
+}
+.cboxIE6 #cboxBottomCenter {
+    background: url("images/ie6/borderBottomCenter.png") repeat scroll 0 0 transparent;
+}
+.cboxIE6 #cboxBottomRight {
+    background: url("images/ie6/borderBottomRight.png") repeat scroll 0 0 transparent;
+}
+.cboxIE6 #cboxMiddleLeft {
+    background: url("images/ie6/borderMiddleLeft.png") repeat scroll 0 0 transparent;
+}
+.cboxIE6 #cboxMiddleRight {
+    background: url("images/ie6/borderMiddleRight.png") repeat scroll 0 0 transparent;
+}
+.cboxIE6 #cboxTopLeft, .cboxIE6 #cboxTopCenter, .cboxIE6 #cboxTopRight, .cboxIE6 #cboxBottomLeft, .cboxIE6 #cboxBottomCenter, .cboxIE6 #cboxBottomRight, .cboxIE6 #cboxMiddleLeft, .cboxIE6 #cboxMiddleRight {
+}
